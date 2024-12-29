@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pd24_provider_counter/providers/counter_model.dart';
 import 'package:provider/provider.dart';
 
+/// This is a reimplementation of the default Flutter application using provider + [ChangeNotifier].
+
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => CounterModel(),
+    /// Providers are above [MyApp] instead of inside it, so that tests
+    /// can use [MyApp] while mocking the providers
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CounterModel()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -16,57 +22,60 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return const MaterialApp(
+      home: MyHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class MyHomePage extends StatelessWidget {
+  const MyHomePage({super.key});
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    return Consumer<CounterModel>(
-      builder: (context, value, child) {
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: Text(widget.title),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const Text(
-                  'You have pushed the button this many times:',
-                ),
-                Text(
-                  '${value.counter}',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => value.increment(),
-            tooltip: 'Increment',
-            child: const Icon(Icons.add),
-          ),
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Example'),
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text('You have pushed the button this many times:'),
+
+            /// Extracted as a separate widget for performance optimization.
+            /// As a separate widget, it will rebuild independently from [MyHomePage].
+            ///
+            /// This is totally optional (and rarely needed).
+            /// Similarly, we could also use [Consumer] or [Selector].
+            Count(),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('increment_floatingActionButton'),
+
+        /// Calls `context.read` instead of `context.watch` so that it does not rebuild
+        /// when [Counter] changes.
+        onPressed: () => context.read<CounterModel>().increment(),
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class Count extends StatelessWidget {
+  const Count({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      /// Calls `context.watch` to make [Count] rebuild when [Counter] changes.
+      '${context.watch<CounterModel>().count}',
+      key: const Key('counterState'),
+      style: Theme.of(context).textTheme.headlineMedium,
     );
   }
 }
